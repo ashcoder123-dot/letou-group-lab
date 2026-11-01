@@ -1,0 +1,139 @@
+name: 自动更新官方开奖
+
+on:
+  schedule:
+    # UTC 14:17 / 15:17 / 23:17 = 北京时间 22:17 / 23:17 / 次日 07:17。
+    - cron: '17 14,15,23 * * *'
+  workflow_dispatch:
+    inputs:
+      verify_only:
+        description: '仅测试抓取、校验和构建，不发布、不提交数据'
+        type: boolean
+        default: true
+      force_deploy:
+        description: '即使开奖数据没有变化，也重新发布当前代码'
+        type: boolean
+        default: false
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/update-history.yml'
+      - 'src/**'
+      - 'scripts/**'
+      - 'public/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig*.json'
+      - 'vite.config.ts'
+      - 'wrangler.jsonc'
+      - 'index.html'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: letou-group-lab-production
+  cancel-in-progress: false
+
+jobs:
+  update:
+    # 首次上传后先手动验证，配置授权成功后才开启定时发布。
+    if: github.event_name == 'workflow_dispatch' || vars.AUTO_UPDATE_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - name: 检出当前默认分支
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: 准备 Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22'
+          cache: npm
+      - name: 读取官方开奖并与当前线上数据比较
+        id: sync
+        run: node scripts/update-data.mjs --compare-published
+      - name: 判断是否需要测试和发布
+        id: plan
+        env:
+          VERIFY_ONLY: ${{ inputs.verify_only || false }}
+          FORCE_DEPLOY: ${{ inputs.force_deploy || false }}
+          SYNC_DEPLOY_REQUIRED: ${{ steps.sync.outputs.deploy_required }}
+          FILE_CHANGED: ${{ steps.sync.outputs.changed }}
+        shell: bash
+        run: |
+          deploy=false
+          checks=false
+          if [[ "$VERIFY_ONLY" != "true" && ( "$SYNC_DEPLOY_REQUIRED" == "true" || "$GITHUB_EVENT_NAME" == "push" || "$FORCE_DEPLOY" == "true" ) ]]; then
+            deploy=true
+          fi
+          if [[ "$deploy" == "true" || "$VERIFY_ONLY" == "true" || "$FILE_CHANGED" == "true" ]]; then
+            checks=true
+          fi
+          echo "deploy=$deploy" >> "$GITHUB_OUTPUT"
+          echo "checks=$checks" >> "$GITHUB_OUTPUT"
+      - name: 准备独立 Python 参考测试
+        if: steps.plan.outputs.checks == 'true'
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: 安装锁定依赖
+        if: steps.plan.outputs.checks == 'true'
+        run: npm ci --no-audit --no-fund
+      - name: 比对分析算法与验证同步逻辑
+        if: steps.plan.outputs.checks == 'true'
+        run: npm test
+      - name: 构建纯静态网站
+        if: steps.plan.outputs.checks == 'true'
+        run: npm run build
+      - name: 确认没有服务器函数或旧后端请求
+        if: steps.plan.outputs.checks == 'true'
+        run: npm run check:static
+      - name: 发布到指定 Cloudflare Pages 项目
+        if: steps.plan.outputs.deploy == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          if [[ -z "$CLOUDFLARE_API_TOKEN" || -z "$CLOUDFLARE_ACCOUNT_ID" ]]; then
+            echo '::error::请先在仓库 Secrets 配置 Cloudflare 部署授权。'
+            exit 1
+          fi
+          if [[ "$CLOUDFLARE_ACCOUNT_ID" != 'b1f33020c615a99a11862f13286441cf' ]]; then
+            echo '::error::Cloudflare 账号与本项目指定账号不一致，停止发布。'
+            exit 1
+          fi
+          npx --no-install wrangler pages deploy dist --project-name letou-group-lab --branch main --commit-dirty=true
+      - name: 确认正式网址已读取本次数据
+        if: steps.plan.outputs.deploy == 'true'
+        run: node scripts/verify-deployment.mjs
+      - name: 保存已核验的数据，供下次更新比较
+        if: steps.sync.outputs.changed == 'true' && inputs.verify_only != true
+        shell: bash
+        run: |
+          git add -- public/data/history.json
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git config --local user.name 'github-actions[bot]'
+          git config --local user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Update verified official lottery history [skip ci]'
+          git pull --rebase origin main
+          git push origin HEAD:main
+      - name: 记录更新结果
+        if: always()
+        env:
+          LATEST_ISSUE: ${{ steps.sync.outputs.latest_issue }}
+          LATEST_DATE: ${{ steps.sync.outputs.latest_date }}
+          DEPLOY_NEEDED: ${{ steps.plan.outputs.deploy }}
+          JOB_STATUS: ${{ job.status }}
+        shell: bash
+        run: |
+          echo "执行状态：$JOB_STATUS" >> "$GITHUB_STEP_SUMMARY"
+          echo "最新期号：$LATEST_ISSUE，开奖日期：$LATEST_DATE" >> "$GITHUB_STEP_SUMMARY"
+          echo "是否需要发布：$DEPLOY_NEEDED" >> "$GITHUB_STEP_SUMMARY"
+          echo '正式地址：https://letou-group-lab.pages.dev' >> "$GITHUB_STEP_SUMMARY"

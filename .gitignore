@@ -1,0 +1,11 @@
+node_modules/
+dist/
+outputs/
+.wrangler/
+.env*
+.dev.vars*
+*.log
+*.tsbuildinfo
+*.tmp
+__pycache__/
+*.pyc
