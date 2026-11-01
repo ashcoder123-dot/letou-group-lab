@@ -60,13 +60,15 @@ npm run deploy
 
 工作流位于 `.github/workflows/update-history.yml`。北京时间每天07:17、22:17、23:17检查数据；使用GitHub标准Linux运行器，未变化时跳过依赖安装、构建和发布。每次部署前运行算法比对与同步测试、静态构建检查；部署成功并核对线上数据后才回写已核验文件到仓库。不使用存储构建产物的付费功能。
 
-工作流、45项测试和公开仓库已准备。**GitHub账号已授权并核对；江苏体彩公开页面已通过GitHub可达性检查，完整同步及构建仍待试跑，定时更新尚未启用。** 使用GitHub标准Linux运行器；验证通过并配置专用发布凭据后才启用定时更新。
+工作流、45项测试和公开仓库已准备。**GitHub账号已授权并核对；完整云端抓取、45项测试和静态构建已通过，定时更新尚未启用。** [云端验证记录](https://github.com/ashcoder123-dot/letou-group-lab/actions/runs/41288650552)使用江苏体彩公开历史表，确认300期、第26124期与线上一致；没有使用Cloudflare令牌或执行发布。
+
+`CLOUDFLARE_ACCOUNT_ID` 仓库Secret已配置，仍需所有者在官网创建专用Pages令牌并保存为 `CLOUDFLARE_API_TOKEN`。正式发布与线上验证通过后，才设置 `AUTO_UPDATE_ENABLED=true`。公开仓库使用GitHub标准Linux运行器。
 
 启用顺序：
 
 1. 使用指定邮箱对应的GitHub账号完成官方授权，并核对账号实际用户名和已验证邮箱。
 2. 按用户已确认的选择上传到其自己的公开仓库，使用免费标准Linux运行器。工作流未设置 `AUTO_UPDATE_ENABLED=true` 时，定时/推送任务不会分配运行器执行。
-3. 手动运行工作流，保留 `verify_only=true`，验证GitHub云端能抓取官方数据并完成全部测试、构建。这一步不需要Cloudflare部署密钥，不会发布或提交数据。
+3. 手动运行工作流，保留 `verify_only=true`，验证GitHub云端能抓取官方数据并完成全部测试、构建。这一步已通过，不需要Cloudflare部署密钥，不会发布或提交数据。
 4. 在Cloudflare官方控制台创建限定本账号的“Cloudflare Pages / Edit”API令牌。现有本机OAuth授权可以部署，但访问令牌管理接口被拒绝，不能用它自动生成CI专用令牌。不要把密码、验证码或令牌发到聊天中。
 5. 在GitHub仓库 Settings → Secrets and variables → Actions 中设置 `CLOUDFLARE_API_TOKEN` 与 `CLOUDFLARE_ACCOUNT_ID` 两个仓库Secret。账号ID必须对应当前已核对的Cloudflare账号，工作流会检查，防止部署到其他账号。
 6. 手动运行 `verify_only=false`、`force_deploy=true`，确认发布和线上验证均成功，再将仓库变量 `AUTO_UPDATE_ENABLED` 设置为 `true`，启用后续定时任务。
