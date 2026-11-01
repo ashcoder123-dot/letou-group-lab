@@ -1,6 +1,6 @@
 # 大乐透分组研究台 · Cloudflare Pages
 
-正式公开地址：[打开大乐透分组研究台](https://letou-group-lab.pages.dev)。2026-11-01已核验并发布第26124期（2026-10-31）官方开奖，共300期；正式网址的数据已与本次文件逐项核对。当前部署：[bb6ef45a](https://bb6ef45a.letou-group-lab.pages.dev)。现有其他 Cloudflare 项目未改动。
+正式公开地址：[打开大乐透分组研究台](https://letou-group-lab.pages.dev)。2026-11-01已从GitHub云端完成实际发布，第26124期（2026-10-31）官方开奖共300期，正式网址的数据已与本次文件逐项核对。当前部署：[d2ecf332](https://d2ecf332.letou-group-lab.pages.dev)。匿名手机和桌面浏览器验证通过，现有其他 Cloudflare 项目未改动。
 
 公开站点采用纯静态托管：Vue 页面、浏览器分析 Worker 和已核验的开奖 JSON。没有 Pages Functions、服务端 Worker、数据库或 AI API。`src/workers/analysis.worker.ts` 是用户浏览器内的后台计算线程。
 
@@ -54,24 +54,30 @@ npm run deploy
 
 “更新数据”按钮只重新读取本站已发布的最新文件。访客不能修改全站数据。核验时间来自文件元数据，不会在访问或切换窗口时伪造为当前时间。
 
-## GitHub Actions 自动更新（已准备，尚未启用）
+## GitHub Actions 自动更新（已启用）
 
 公开代码仓库：[ashcoder123-dot/letou-group-lab](https://github.com/ashcoder123-dot/letou-group-lab)。已核对GitHub授权账号及其已验证主邮箱，仓库归属符合用户指定账号。
 
 工作流位于 `.github/workflows/update-history.yml`。北京时间每天07:17、22:17、23:17检查数据；使用GitHub标准Linux运行器，未变化时跳过依赖安装、构建和发布。每次部署前运行算法比对与同步测试、静态构建检查；部署成功并核对线上数据后才回写已核验文件到仓库。不使用存储构建产物的付费功能。
 
-工作流、45项测试和公开仓库已准备。**GitHub账号已授权并核对；完整云端抓取、45项测试和静态构建已通过，定时更新尚未启用。** [云端验证记录](https://github.com/ashcoder123-dot/letou-group-lab/actions/runs/41288650552)使用江苏体彩公开历史表，确认300期、第26124期与线上一致；没有使用Cloudflare令牌或执行发布。
+**2026-11-01已完成实际发布验证并开启定时更新。** `AUTO_UPDATE_ENABLED=true` 已回读确认，GitHub工作流状态为 `active`。运行不依赖本机开机。
 
-`CLOUDFLARE_ACCOUNT_ID` 仓库Secret已配置，仍需所有者在官网创建专用Pages令牌并保存为 `CLOUDFLARE_API_TOKEN`。正式发布与线上验证通过后，才设置 `AUTO_UPDATE_ENABLED=true`。公开仓库使用GitHub标准Linux运行器。
+验证记录：
+
+- [完整发布验证](https://github.com/ashcoder123-dot/letou-group-lab/actions/runs/41290532249)：官方抓取、45项测试、静态构建、Cloudflare实际发布及线上数据核对全部通过。
+- [无新数据检查](https://github.com/ashcoder123-dot/letou-group-lab/actions/runs/41290708987)：检查成功，依赖安装、构建和发布均按预期跳过。
+- 正式网址匿名桌面及手机浏览器验证通过：前区13种、后区11种、5个观察窗口，无旧后端请求、无页面错误。
+
+`CLOUDFLARE_ACCOUNT_ID` 与 `CLOUDFLARE_API_TOKEN` 均已保存在仓库Secret中，令牌值不写入仓库或文档。公开仓库使用GitHub标准Linux运行器。
 
 启用顺序：
 
 1. 使用指定邮箱对应的GitHub账号完成官方授权，并核对账号实际用户名和已验证邮箱。
 2. 按用户已确认的选择上传到其自己的公开仓库，使用免费标准Linux运行器。工作流未设置 `AUTO_UPDATE_ENABLED=true` 时，定时/推送任务不会分配运行器执行。
 3. 手动运行工作流，保留 `verify_only=true`，验证GitHub云端能抓取官方数据并完成全部测试、构建。这一步已通过，不需要Cloudflare部署密钥，不会发布或提交数据。
-4. 在Cloudflare官方控制台创建限定本账号的“Cloudflare Pages / Edit”API令牌。现有本机OAuth授权可以部署，但访问令牌管理接口被拒绝，不能用它自动生成CI专用令牌。不要把密码、验证码或令牌发到聊天中。
-5. 在GitHub仓库 Settings → Secrets and variables → Actions 中设置 `CLOUDFLARE_API_TOKEN` 与 `CLOUDFLARE_ACCOUNT_ID` 两个仓库Secret。账号ID必须对应当前已核对的Cloudflare账号，工作流会检查，防止部署到其他账号。
-6. 手动运行 `verify_only=false`、`force_deploy=true`，确认发布和线上验证均成功，再将仓库变量 `AUTO_UPDATE_ENABLED` 设置为 `true`，启用后续定时任务。
+4. 在Cloudflare官方控制台创建限定本账号的Pages写入令牌。当前分组式界面选择 `Start from scratch`，搜索 `Pages` 并勾选 `Pages Write`；另一类界面标为 `Account → Cloudflare Pages → Edit`。现有本机OAuth授权可以部署，但不能自动生成CI专用令牌。该项已由所有者完成；后续更换令牌时直接在官方网页操作，不在聊天发送凭据。
+5. 在GitHub仓库 Settings → Secrets and variables → Actions 中设置 `CLOUDFLARE_API_TOKEN` 与 `CLOUDFLARE_ACCOUNT_ID` 两个仓库Secret，当前均已完成。账号ID必须对应当前已核对的Cloudflare账号，工作流会检查，防止部署到其他账号。
+6. 已手动运行 `verify_only=false`、`force_deploy=true` 并验证发布成功，再将仓库变量 `AUTO_UPDATE_ENABLED` 设置为 `true`。后续定时任务已启用；需要主动重新发布代码时，可手动运行并启用 `force_deploy`。
 
 调度可能因平台负载延迟；定时任务不会保证在指定秒数运行。公开仓库长时间没有活动时可能停用定时工作流，可在Actions中查看状态。当前流程会在真实开奖数据更新后提交记录，不生成保活用的虚假数据。
 
