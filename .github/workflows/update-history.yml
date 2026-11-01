@@ -53,9 +53,9 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-      - name: 读取官方开奖并与当前线上数据比较
+      - name: 读取江苏体彩公开开奖并与当前线上数据比较
         id: sync
-        run: node scripts/update-data.mjs --compare-published
+        run: node scripts/update-data.mjs --source jiangsu --compare-published
       - name: 判断是否需要测试和发布
         id: plan
         env:

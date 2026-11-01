@@ -33,7 +33,7 @@ npm run deploy
 
 使用自己的 Cloudflare 账号授权，不把令牌写入代码或文档。项目的 `wrangler.jsonc` 仅配置静态产物目录；发布流程不创建数据库或启用服务器函数。
 
-当前项目已创建，后续直接运行 `npm run deploy`。上述首次创建命令的 `--force` 用于明确选择原生 Pages，避免新版 Wrangler 首次创建时转向 Workers；创建后不需要此参数。当前37项算法、数据与同步测试已通过，静态构建检查已通过；首次迁移的手机/桌面浏览器检查及依赖审计也已通过。
+当前项目已创建，后续直接运行 `npm run deploy`。上述首次创建命令的 `--force` 用于明确选择原生 Pages，避免新版 Wrangler 首次创建时转向 Workers；创建后不需要此参数。当前45项算法、数据、官方表格解析与同步测试已通过；首次迁移的手机/桌面浏览器检查及依赖审计也已通过。
 
 也可在 Cloudflare Pages 的 Direct Upload 页面上传 `dist/` 内容或其 ZIP 包。ZIP 根目录必须直接包含 `index.html`。Direct Upload 项目后续仍可用 Wrangler 或 CI 更新。
 
@@ -44,7 +44,9 @@ npm run data:sync
 npm run deploy
 ```
 
-同步脚本只请求体彩官方接口，校验期号、真实日期、号码范围、数量、唯一性和冲突，成功后原子替换 `public/data/history.json`。没有新开奖时保持原文件和核验时间不变。每个网络请求最多尝试3次，失败时保留已核验的数据；相同期号出现冲突时停止更新，留待核对。
+本地同步默认请求中国体彩网历史接口；云端工作流使用[江苏体彩官方公开历史表](https://api.js-lottery.com/wfzq/dlt/data)的分页数据，因原接口在GitHub服务器返回HTTP 567。江苏体彩公开表的300期已与现有官方缓存逐期核对一致，可通过 `node scripts/update-data.mjs --source jiangsu --compare-published --dry-run` 复核。
+
+两种来源都校验期号、真实日期、号码范围、数量、唯一性和冲突，成功后原子替换 `public/data/history.json`。没有新开奖时保持原文件和核验时间不变。每个网络请求最多尝试3次，失败时保留已核验的数据；相同期号出现冲突时停止更新，留待核对。
 
 自动发布前使用 `node scripts/update-data.mjs --compare-published` 同时比较正式网站：防止线上回退，也能发现“仓库已更新但上次发布失败”的情况并补发。加 `--dry-run` 可只读检查。发布后用 `node scripts/verify-deployment.mjs` 确认线上文件与本次发布一致。
 
@@ -58,7 +60,7 @@ npm run deploy
 
 工作流位于 `.github/workflows/update-history.yml`。北京时间每天07:17、22:17、23:17检查数据；使用GitHub标准Linux运行器，未变化时跳过依赖安装、构建和发布。每次部署前运行算法比对与同步测试、静态构建检查；部署成功并核对线上数据后才回写已核验文件到仓库。不使用存储构建产物的付费功能。
 
-工作流、37项测试和公开仓库已准备。**GitHub账号已授权并核对，云端抓取可达性仍待首次试跑验证，定时更新尚未启用。** 使用GitHub标准Linux运行器；验证通过并配置专用发布凭据后才启用定时更新。
+工作流、45项测试和公开仓库已准备。**GitHub账号已授权并核对；江苏体彩公开页面已通过GitHub可达性检查，完整同步及构建仍待试跑，定时更新尚未启用。** 使用GitHub标准Linux运行器；验证通过并配置专用发布凭据后才启用定时更新。
 
 启用顺序：
 
